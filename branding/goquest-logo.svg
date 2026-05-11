@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Goquest logomark — 1024×1024.
+  Q glyph from Avenir Next Heavy, converted to path so the mark renders
+  identically across platforms (no font dependency at runtime).
+
+  Palette (Korean ivory + 단청 vermillion):
+    Field  #C73E1D   단청 vermillion
+    Mark   #FAF3E0   silk ivory
+
+  Glyph metrics (Avenir Next Heavy Regular, fontNumber=8 in the .ttc):
+    bbox  (34, 0)–(852, 728), advance 864, em 1000
+  Transform centers it inside a 1024 canvas with ~16% padding.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Goquest</title>
+  <rect width="1024" height="1024" fill="#C73E1D"/>
+  <path transform="translate(91, 854) scale(0.95, -0.95)"
+        fill="#FAF3E0"
+        d="M740 180 852 187V0H414Q330 0 260.0 23.5Q190 47 140.0 93.0Q90 139 62.0 206.5Q34 274 34 362Q34 443 64.0 510.5Q94 578 146.5 626.5Q199 675 271.0 701.5Q343 728 427 728Q511 728 582.0 701.5Q653 675 704.5 628.0Q756 581 785.0 515.0Q814 449 814 371Q814 341 807.5 312.0Q801 283 790.5 258.5Q780 234 766.5 214.5Q753 195 740 184ZM287 358Q287 323 297.5 294.0Q308 265 326.5 244.0Q345 223 371.0 211.5Q397 200 427 200Q457 200 482.5 211.5Q508 223 527.0 244.0Q546 265 556.5 294.0Q567 323 567 358Q567 392 556.5 420.5Q546 449 527.0 468.5Q508 488 482.5 499.0Q457 510 427 510Q397 510 371.0 499.0Q345 488 326.5 468.5Q308 449 297.5 420.5Q287 392 287 358Z"/>
+</svg>
