@@ -1,0 +1,60 @@
+# Woodpecker CI — iOS (xcodegen + xcodebuild)
+#
+# Runs on the macOS self-hosted agent registered with the `platform=darwin/arm64`
+# label. See `docs/woodpecker-mac-agent.md` for the agent setup runbook.
+#
+# Backend: `local` — each step runs as a shell command directly on the host.
+# The `image:` field is required by the schema but ignored by the local backend.
+#
+# CODE_SIGNING_ALLOWED=NO so we don't need a code-signing identity in CI;
+# the build still validates compilation + linking. Distribution archives
+# (release lane) will need signing — separate pipeline.
+
+when:
+  - event: push
+    branch: main
+  - event: pull_request
+  - event: manual
+
+labels:
+  platform: darwin/arm64
+
+steps:
+  # ── 1. Regenerate xcodeproj (Goquest.xcodeproj/ is gitignored) ──
+  - name: xcodegen
+    image: scratch
+    commands:
+      - xcodegen --version
+      - xcodegen generate
+
+  # ── 2. Build for iOS Simulator (no signing) ──
+  - name: build-simulator
+    image: scratch
+    commands:
+      - xcodebuild -version
+      - |
+        set -o pipefail
+        xcodebuild \
+          -project Goquest.xcodeproj \
+          -scheme Goquest \
+          -sdk iphonesimulator \
+          -configuration Debug \
+          -destination 'generic/platform=iOS Simulator' \
+          CODE_SIGNING_ALLOWED=NO \
+          -skipPackagePluginValidation \
+          build \
+          | grep -E '(^/|error:|warning:|FAILED|BUILD|\*\*)' || true
+      - |
+        # Re-run silently to surface a non-zero exit if the filtered output
+        # above swallowed it (grep returns 1 if no matches). This second run
+        # only repeats if Xcode's incremental cache is warm, so the cost is
+        # near-zero.
+        xcodebuild \
+          -project Goquest.xcodeproj \
+          -scheme Goquest \
+          -sdk iphonesimulator \
+          -configuration Debug \
+          -destination 'generic/platform=iOS Simulator' \
+          CODE_SIGNING_ALLOWED=NO \
+          -skipPackagePluginValidation \
+          build > /dev/null
