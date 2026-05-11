@@ -7,6 +7,7 @@ options:
   createIntermediateGroups: true
   deploymentTarget:
     iOS: "17.0"
+    watchOS: "10.0"
   developmentLanguage: en
 
 settings:
@@ -72,6 +73,32 @@ targets:
     dependencies:
       - package: AppAuth
       - package: KeychainAccess
+
+  GoquestWatch:
+    # watchOS companion app. The iPhone Goquest app pushes the OIDC
+    # access_token over WatchConnectivity; this target uses it to call
+    # the goquest-service REST API. Push notifications mirror from the
+    # iPhone automatically once paired.
+    type: application
+    platform: watchOS
+    deploymentTarget: "10.0"
+    sources:
+      - path: GoquestWatch
+    info:
+      path: GoquestWatch/Info.plist
+      properties:
+        CFBundleDisplayName: Goquest
+        WKApplication: true
+        WKWatchOnly: false
+        WKCompanionAppBundleIdentifier: home.toji.goquest
+        UILaunchScreen:
+          UIColorName: AccentColor
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: home.toji.goquest.watchkitapp
+        TARGETED_DEVICE_FAMILY: "4"
+        SUPPORTED_PLATFORMS: "watchsimulator watchos"
+        SUPPORTS_MACCATALYST: NO
 
   GoquestUnitTests:
     type: bundle.unit-test

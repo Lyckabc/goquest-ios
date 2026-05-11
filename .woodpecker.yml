@@ -27,13 +27,12 @@ steps:
       - xcodegen --version
       - xcodegen generate
 
-  # ── 2. Build for iOS Simulator (no signing) ──
-  - name: build-simulator
+  # ── 2. Build iOS app for Simulator (no signing) ──
+  - name: build-ios
     image: bash
     commands:
       - xcodebuild -version
       - |
-        set -o pipefail
         xcodebuild \
           -project Goquest.xcodeproj \
           -scheme Goquest \
@@ -42,19 +41,19 @@ steps:
           -destination 'generic/platform=iOS Simulator' \
           CODE_SIGNING_ALLOWED=NO \
           -skipPackagePluginValidation \
-          build \
-          | grep -E '(^/|error:|warning:|FAILED|BUILD|\*\*)' || true
+          build > /dev/null
+
+  # ── 3. Build watchOS companion for Simulator (no signing) ──
+  - name: build-watchos
+    image: bash
+    commands:
       - |
-        # Re-run silently to surface a non-zero exit if the filtered output
-        # above swallowed it (grep returns 1 if no matches). This second run
-        # only repeats if Xcode's incremental cache is warm, so the cost is
-        # near-zero.
         xcodebuild \
           -project Goquest.xcodeproj \
-          -scheme Goquest \
-          -sdk iphonesimulator \
+          -scheme GoquestWatch \
+          -sdk watchsimulator \
           -configuration Debug \
-          -destination 'generic/platform=iOS Simulator' \
+          -destination 'generic/platform=watchOS Simulator' \
           CODE_SIGNING_ALLOWED=NO \
           -skipPackagePluginValidation \
           build > /dev/null

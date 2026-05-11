@@ -83,6 +83,22 @@ actor APIClient {
         return try await postRaw("/devices/register", body: body)
     }
 
+    // MARK: - Ticket actions
+
+    /// Used by the notification action handler (and the Watch bridge) to flip
+    /// a ticket into a terminal state with a single PATCH. Service-side
+    /// rejects invalid transitions, so a stale notification can't corrupt.
+    @discardableResult
+    func patchTicketStatus(id: String, status: String) async throws -> Data {
+        struct Body: Encodable { let status: String }
+        var req = try await authedRequest(method: "PATCH", path: "/tickets/\(id)")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONEncoder().encode(Body(status: status))
+        let (data, resp) = try await session.data(for: req)
+        try Self.throwIfHTTPError(resp, data: data)
+        return data
+    }
+
     // MARK: - Internals
 
     private func get<T: Decodable>(_ path: String) async throws -> T {
