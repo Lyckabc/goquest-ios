@@ -16,9 +16,11 @@ final class AuthService: ObservableObject {
     private let keychain = Keychain(service: "home.toji.goquest.auth")
     private let stateKey = "oidAuthState"
 
-    // ZITADEL config — matches lymphhub IaC (sso-apps.tf goquest_ios entry to be added)
+    // ZITADEL config — provisioned via lymphhub Terraform (sso-apps.tf → goquest_ios).
+    // Vault path: secret/neunexus/sso/goquest-ios (client-id).
+    // To rotate, edit lymphhub and re-apply; the value below mirrors the current state.
     private let issuer = URL(string: "https://auth.toji.homes")!
-    private let clientID = "GOQUEST_IOS_CLIENT_ID"   // injected at build via xcconfig (TODO)
+    private let clientID = "372400414877936855"
     private let redirectURI = URL(string: "home.toji.goquest:/oauth2redirect/zitadel")!
 
     private var authState: OIDAuthState? {
