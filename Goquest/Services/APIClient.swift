@@ -1,11 +1,18 @@
 import Foundation
+import OSLog
+
+private let log = Logger(subsystem: "home.toji.goquest", category: "API")
 
 /// Minimal REST client targeting `goquest-service`. All requests carry the
 /// caller's ZITADEL access token from `AuthService`.
 actor APIClient {
     static let shared = APIClient()
 
-    private let baseURL = URL(string: "https://goquest.toji.homes/api/v1")!
+    // NOTE: keep absoluteString-based concatenation rather than URL(string:relativeTo:).
+    // `URL(string: "/x", relativeTo: …/api/v1)` resolves the leading slash against
+    // the host root, dropping `/api/v1`. We use string concatenation in
+    // `authedRequest` to avoid this footgun.
+    private let baseURL = "https://goquest.toji.homes/api/v1"
     private let session: URLSession
     private let decoder: JSONDecoder
 
@@ -72,9 +79,18 @@ actor APIClient {
 
     private func get<T: Decodable>(_ path: String) async throws -> T {
         let req = try await authedRequest(method: "GET", path: path)
+        log.info("GET \(req.url?.absoluteString ?? "?", privacy: .public)")
         let (data, resp) = try await session.data(for: req)
+        let status = (resp as? HTTPURLResponse)?.statusCode ?? -1
+        let preview = String(data: data.prefix(200), encoding: .utf8) ?? "<binary>"
+        log.info("  → \(status, privacy: .public) bytes=\(data.count, privacy: .public) preview=\(preview, privacy: .public)")
         try Self.throwIfHTTPError(resp, data: data)
-        return try decoder.decode(T.self, from: data)
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            log.error("decode failed: \(error.localizedDescription, privacy: .public)")
+            throw error
+        }
     }
 
     private func postRaw<B: Encodable>(_ path: String, body: B) async throws -> Data {
@@ -87,7 +103,8 @@ actor APIClient {
     }
 
     private func authedRequest(method: String, path: String) async throws -> URLRequest {
-        guard let url = URL(string: path.hasPrefix("/") ? path : "/" + path, relativeTo: baseURL) else {
+        let leadingSlash = path.hasPrefix("/") ? path : "/" + path
+        guard let url = URL(string: baseURL + leadingSlash) else {
             throw APIError.invalidPath(path)
         }
         var req = URLRequest(url: url)
