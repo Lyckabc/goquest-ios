@@ -120,14 +120,17 @@ enum APIError: Error, LocalizedError {
 }
 
 // Foundation's ISO8601 doesn't handle fractional seconds by default; Go's
-// time.Time JSON encoding emits them. Add a custom strategy.
+// time.Time JSON encoding emits them. The closure-capture of `ISO8601DateFormatter`
+// is not Sendable, so we build new formatters inside the closure each call.
+// (Formatter creation is cheap relative to network round-trips.)
 extension JSONDecoder.DateDecodingStrategy {
     static var iso8601withFractionalSeconds: JSONDecoder.DateDecodingStrategy {
-        let primary = ISO8601DateFormatter()
-        primary.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let fallback = ISO8601DateFormatter()
-        fallback.formatOptions = [.withInternetDateTime]
         return .custom { decoder in
+            let primary = ISO8601DateFormatter()
+            primary.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            let fallback = ISO8601DateFormatter()
+            fallback.formatOptions = [.withInternetDateTime]
+
             let c = try decoder.singleValueContainer()
             let str = try c.decode(String.self)
             if let d = primary.date(from: str) ?? fallback.date(from: str) {

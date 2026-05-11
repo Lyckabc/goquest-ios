@@ -43,7 +43,9 @@ final class AuthService: ObservableObject {
         let request = OIDAuthorizationRequest(
             configuration: config,
             clientId: clientID,
-            scopes: [OIDScopeOpenID, OIDScopeProfile, OIDScopeEmail, OIDScopeOfflineAccess],
+            // AppAuth-iOS exposes constants for openid/profile/email/phone/address only.
+            // `offline_access` (needed for refresh tokens) is passed as a raw string.
+            scopes: [OIDScopeOpenID, OIDScopeProfile, OIDScopeEmail, "offline_access"],
             redirectURL: redirectURI,
             responseType: OIDResponseTypeCode,
             additionalParameters: nil
