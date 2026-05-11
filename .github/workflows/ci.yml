@@ -4,15 +4,21 @@ on:
     branches: [main]
   pull_request:
 
+# Bash `set -o pipefail` so xcodebuild errors aren't swallowed by xcpretty.
+defaults:
+  run:
+    shell: bash -eo pipefail {0}
+
 jobs:
   build:
-    runs-on: macos-14
+    # macos-15 ships Xcode 16+ which matches XcodeGen 2.45+ project format (objectVersion=77).
+    runs-on: macos-15
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_15.4.app
+      - name: Show Xcode version
+        run: xcodebuild -version
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -25,17 +31,17 @@ jobs:
           xcodebuild \
             -project Goquest.xcodeproj \
             -scheme Goquest \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
-            build | xcpretty || exit ${PIPESTATUS[0]}
+            build
 
       - name: Unit tests
         run: |
           xcodebuild \
             -project Goquest.xcodeproj \
             -scheme Goquest \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=17.5' \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -only-testing:GoquestUnitTests \
             CODE_SIGNING_ALLOWED=NO \
-            test | xcpretty || exit ${PIPESTATUS[0]}
+            test
