@@ -47,8 +47,15 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - home.toji.goquest
-        # Background modes — disabled for MVP; enable when adding background fetch.
-        UIBackgroundModes: []
+        # Background modes — `processing` + `fetch` together let
+        # BGTaskScheduler wake the app for the calendar-sync refresh task.
+        UIBackgroundModes:
+          - processing
+          - fetch
+        # Identifiers below must match BGTaskScheduler.shared.register calls
+        # in BackgroundCalendarSync.swift exactly.
+        BGTaskSchedulerPermittedIdentifiers:
+          - home.toji.goquest.calendar-sync
         NSCalendarsUsageDescription: >
           Goquest can sync ticket due dates to your iOS Calendar so you never
           miss a deadline.

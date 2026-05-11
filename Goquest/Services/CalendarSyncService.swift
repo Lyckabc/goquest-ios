@@ -115,6 +115,20 @@ final class CalendarSyncService: ObservableObject {
         lastSyncedAt = Date()
     }
 
+    /// Fetches workspaces + their tickets from goquest-service and runs
+    /// `sync(workspace:tickets:)` for each. Used by Settings → Sync now AND
+    /// by the background refresh task — keeps the trigger paths sharing one
+    /// idempotent implementation.
+    func syncAllWorkspaces() async throws -> Int {
+        guard prefs.isEnabled else { return 0 }
+        let workspaces = try await APIClient.shared.listWorkspaces()
+        for ws in workspaces {
+            let resp = try await APIClient.shared.listTickets(workspaceId: ws.id, limit: 200)
+            try sync(workspace: ws, tickets: resp.tickets)
+        }
+        return workspaces.count
+    }
+
     // MARK: - Settings ergonomics
 
     func enableSync() {

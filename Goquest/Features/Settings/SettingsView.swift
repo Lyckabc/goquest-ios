@@ -91,23 +91,24 @@ struct SettingsView: View {
                 }
                 calendar.enableSync()
                 await syncNow()
+                BackgroundCalendarSync.shared.scheduleNextRefresh()
             } catch {
                 syncStatusMessage = error.localizedDescription
             }
         } else {
             do { try calendar.disableSync(deleteEvents: false) }
             catch { syncStatusMessage = error.localizedDescription }
+            BackgroundCalendarSync.shared.cancelPendingRefresh()
         }
     }
 
     private func syncNow() async {
-        guard calendar.prefs.isEnabled else { return }
         do {
-            for ws in workspaces {
-                let tickets = try await APIClient.shared.listTickets(workspaceId: ws.id, limit: 200).tickets
-                try calendar.sync(workspace: ws, tickets: tickets)
-            }
-            syncStatusMessage = "Synced \(workspaces.count) workspaces."
+            let n = try await calendar.syncAllWorkspaces()
+            syncStatusMessage = "Synced \(n) workspaces."
+            // Manual sync also re-arms the background refresh task so the
+            // next system-driven sync stays scheduled.
+            BackgroundCalendarSync.shared.scheduleNextRefresh()
         } catch {
             syncStatusMessage = "Sync failed: \(error.localizedDescription)"
         }

@@ -2,6 +2,9 @@ import Foundation
 import AppAuth
 import KeychainAccess
 import UIKit
+import OSLog
+
+private let log = Logger(subsystem: "home.toji.goquest", category: "Auth")
 
 /// ZITADEL OIDC PKCE wrapper. Persists the OIDAuthState in Keychain so
 /// silent refresh works across launches.
@@ -21,7 +24,10 @@ final class AuthService: ObservableObject {
     // To rotate, edit lymphhub and re-apply; the value below mirrors the current state.
     private let issuer = URL(string: "https://auth.toji.homes")!
     private let clientID = "372400414877936855"
-    private let redirectURI = URL(string: "home.toji.goquest:/oauth2redirect/zitadel")!
+    // Use double-slash custom scheme form. iOS 18+'s URL parser canonicalises
+    // single-slash forms inconsistently across ASWebAuthenticationSession and
+    // CFNetwork, which can break the redirect_uri exact-match in OAuth.
+    private let redirectURI = URL(string: "home.toji.goquest://oauth2redirect/zitadel")!
 
     private var authState: OIDAuthState? {
         didSet { persist() }
@@ -57,6 +63,16 @@ final class AuthService: ObservableObject {
                     self?.state = .loggedIn
                     cont.resume()
                 } else {
+                    // Detailed logging via os_log so simctl log stream captures it.
+                    if let nsErr = error as NSError? {
+                        log.error("login failed: domain=\(nsErr.domain, privacy: .public) code=\(nsErr.code, privacy: .public)")
+                        log.error("  description=\(nsErr.localizedDescription, privacy: .public)")
+                        for (k, v) in nsErr.userInfo {
+                            log.error("  userInfo[\(String(describing: k), privacy: .public)] = \(String(describing: v), privacy: .public)")
+                        }
+                    } else {
+                        log.error("login failed: state and error both nil")
+                    }
                     cont.resume(throwing: error ?? AuthError.unknown)
                 }
             }

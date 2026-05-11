@@ -56,7 +56,19 @@ struct LoginView: View {
         do {
             try await auth.login(presenting: root)
         } catch {
-            self.error = error.localizedDescription
+            // Surface NSError domain/code on screen for diagnosis.
+            let nsErr = error as NSError
+            var parts = ["\(nsErr.domain) (\(nsErr.code))", nsErr.localizedDescription]
+            if let oauthErr = nsErr.userInfo["OIDOAuthErrorResponseErrorKey"] {
+                parts.append("oauth_error=\(oauthErr)")
+            }
+            if let underlying = nsErr.userInfo[NSUnderlyingErrorKey] as? NSError {
+                parts.append("underlying=\(underlying.domain) (\(underlying.code))")
+            }
+            if let debug = nsErr.userInfo["NSDebugDescription"] {
+                parts.append("debug=\(debug)")
+            }
+            self.error = parts.joined(separator: "\n")
         }
     }
 }
