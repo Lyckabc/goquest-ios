@@ -91,10 +91,12 @@ final class AuthService: ObservableObject {
         state = .loggedOut
     }
 
-    /// Returns a valid access token, refreshing silently if needed.
+    /// Returns a valid access token, refreshing silently if needed. Also
+    /// fans the token out to the paired Watch so the watchOS Complete action
+    /// stays signed without its own login flow.
     func accessToken() async throws -> String {
         guard let auth = authState else { throw AuthError.notLoggedIn }
-        return try await withCheckedThrowingContinuation { cont in
+        let token: String = try await withCheckedThrowingContinuation { cont in
             auth.performAction { (accessToken: String?, _: String?, error: Error?) in
                 if let t = accessToken {
                     cont.resume(returning: t)
@@ -103,6 +105,8 @@ final class AuthService: ObservableObject {
                 }
             }
         }
+        PhoneWatchBridge.shared.pushAccessToken(token)
+        return token
     }
 
     var userId: String? {
