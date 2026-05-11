@@ -77,6 +77,33 @@ final class CalendarSyncService: ObservableObject {
         savePrefs()
     }
 
+    /// Discover every calendar we plausibly own. We union two sources so a
+    /// reinstall (UserDefaults wiped) or never-synced state doesn't lock the
+    /// user out of cleanup:
+    ///   1) IDs we tracked in `prefs.workspaceCalendars`
+    ///   2) Any EKCalendar whose title starts with "Goquest -" — that's
+    ///      `ensureCalendar(for:)`'s naming pattern.
+    private func goquestCalendars() -> [EKCalendar] {
+        var seen = Set<String>()
+        var out: [EKCalendar] = []
+        for (_, id) in prefs.workspaceCalendars {
+            if let c = store.calendar(withIdentifier: id), seen.insert(c.calendarIdentifier).inserted {
+                out.append(c)
+            }
+        }
+        for c in store.calendars(for: .event) where c.title.hasPrefix("Goquest -") {
+            if seen.insert(c.calendarIdentifier).inserted {
+                out.append(c)
+            }
+        }
+        return out
+    }
+
+    /// True iff at least one Goquest-owned calendar exists on the device.
+    /// Used by Settings to decide whether to surface destructive actions
+    /// even when `prefs.workspaceCalendars` is empty (e.g. after reinstall).
+    var hasAnyGoquestCalendar: Bool { !goquestCalendars().isEmpty }
+
     /// Nuke every event Goquest has written to iOS Calendar, leaving the
     /// per-workspace calendar shells in place so a subsequent sync re-fills
     /// them. Use this when the user wants to clean up pollution (e.g.
@@ -86,8 +113,7 @@ final class CalendarSyncService: ObservableObject {
     @discardableResult
     func purgeAllEvents() throws -> Int {
         var removed = 0
-        for (_, calID) in prefs.workspaceCalendars {
-            guard let cal = store.calendar(withIdentifier: calID) else { continue }
+        for cal in goquestCalendars() {
             let pred = store.predicateForEvents(
                 withStart: .distantPast, end: .distantFuture, calendars: [cal]
             )
@@ -95,6 +121,19 @@ final class CalendarSyncService: ObservableObject {
                 try store.remove(ev, span: .thisEvent, commit: false)
                 removed += 1
             }
+        }
+        try store.commit()
+        return removed
+    }
+
+    /// Remove every Goquest-owned calendar (and their events). Wider hammer
+    /// than `purgeAllEvents()`; pairs with disableSync to give a clean slate.
+    @discardableResult
+    func removeAllGoquestCalendars() throws -> Int {
+        var removed = 0
+        for cal in goquestCalendars() {
+            try store.removeCalendar(cal, commit: false)
+            removed += 1
         }
         try store.commit()
         return removed
