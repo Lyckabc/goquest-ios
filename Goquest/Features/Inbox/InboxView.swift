@@ -3,7 +3,13 @@ import SwiftUI
 @MainActor
 final class InboxViewModel: ObservableObject {
     @Published var workspaces: [Workspace] = []
+    /// `nil` means "All workspaces" — fetches tickets cross-workspace.
     @Published var selectedWorkspace: Workspace?
+    @Published var projects: [Project] = []
+    /// `nil` means "All projects in the current workspace selection".
+    /// Forced to `nil` whenever `selectedWorkspace == nil` (All) because the
+    /// project list endpoint is workspace-scoped.
+    @Published var selectedProject: Project?
     @Published var tickets: [Ticket] = []
     @Published var queue: Queue = .open
     @Published var isLoading = false
@@ -17,21 +23,50 @@ final class InboxViewModel: ObservableObject {
     func loadWorkspaces() async {
         do {
             workspaces = try await APIClient.shared.listWorkspaces()
+            // Default to the first workspace if none chosen yet; user can
+            // switch to "All" via the picker once data is loaded.
             if selectedWorkspace == nil, let first = workspaces.first {
                 selectedWorkspace = first
-                await loadTickets()
+                await loadProjects()
             }
+            await loadTickets()
         } catch {
             self.error = error.localizedDescription
         }
     }
 
-    func loadTickets() async {
+    func selectWorkspace(_ ws: Workspace?) async {
+        selectedWorkspace = ws
+        selectedProject = nil   // project list is workspace-scoped
+        projects = []
+        await loadProjects()
+        await loadTickets()
+    }
+
+    func selectProject(_ project: Project?) async {
+        selectedProject = project
+        await loadTickets()
+    }
+
+    private func loadProjects() async {
         guard let w = selectedWorkspace else { return }
+        do {
+            projects = try await APIClient.shared.listProjects(workspaceId: w.id)
+        } catch {
+            // Non-fatal — projects picker just stays empty.
+            projects = []
+        }
+    }
+
+    func loadTickets() async {
         isLoading = true
         defer { isLoading = false }
         do {
-            let resp = try await APIClient.shared.listTickets(workspaceId: w.id, limit: 100)
+            let resp = try await APIClient.shared.listTickets(
+                workspaceId: selectedWorkspace?.id,
+                projectId: selectedProject?.id,
+                limit: 100
+            )
             tickets = resp.tickets
         } catch {
             self.error = error.localizedDescription
@@ -54,19 +89,46 @@ final class InboxViewModel: ObservableObject {
 struct InboxView: View {
     @StateObject private var vm = InboxViewModel()
 
+    // Sentinel string tag for the "All workspaces" picker option. Distinct from
+    // any UUID so it cannot collide with a real workspace id.
+    private static let allWorkspacesTag = "__all__"
+
     var body: some View {
         List {
-            if vm.workspaces.count > 1 {
+            if !vm.workspaces.isEmpty {
                 Section {
                     Picker("Workspace", selection: Binding(
-                        get: { vm.selectedWorkspace?.id ?? "" },
+                        get: { vm.selectedWorkspace?.id ?? Self.allWorkspacesTag },
                         set: { newId in
-                            vm.selectedWorkspace = vm.workspaces.first { $0.id == newId }
-                            Task { await vm.loadTickets() }
+                            let target = newId == Self.allWorkspacesTag
+                                ? nil
+                                : vm.workspaces.first { $0.id == newId }
+                            Task { await vm.selectWorkspace(target) }
                         }
                     )) {
+                        Text("All workspaces").tag(Self.allWorkspacesTag)
                         ForEach(vm.workspaces) { w in
                             Text(w.name).tag(w.id)
+                        }
+                    }
+
+                    // Project picker — only meaningful within a single workspace.
+                    // The list endpoint is workspace-scoped, so we hide it when
+                    // the user picked "All workspaces".
+                    if vm.selectedWorkspace != nil && !vm.projects.isEmpty {
+                        Picker("Project", selection: Binding(
+                            get: { vm.selectedProject?.id ?? "" },
+                            set: { newId in
+                                let target = newId.isEmpty
+                                    ? nil
+                                    : vm.projects.first { $0.id == newId }
+                                Task { await vm.selectProject(target) }
+                            }
+                        )) {
+                            Text("All projects").tag("")
+                            ForEach(vm.projects) { p in
+                                Text(p.name).tag(p.id)
+                            }
                         }
                     }
                 }

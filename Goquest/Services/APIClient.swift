@@ -38,10 +38,18 @@ actor APIClient {
         return r.projects
     }
 
-    func listTickets(workspaceId: String?, limit: Int = 50, offset: Int = 0) async throws -> TicketListResponse {
+    func listTickets(
+        workspaceId: String? = nil,
+        projectId: String? = nil,
+        limit: Int = 50,
+        offset: Int = 0
+    ) async throws -> TicketListResponse {
         var path = "/tickets?limit=\(limit)&offset=\(offset)"
         if let w = workspaceId, !w.isEmpty {
             path += "&workspace_id=\(w)"
+        }
+        if let p = projectId, !p.isEmpty {
+            path += "&project_id=\(p)"
         }
         return try await get(path)
     }
