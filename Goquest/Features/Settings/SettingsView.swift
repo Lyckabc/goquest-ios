@@ -8,6 +8,7 @@ struct SettingsView: View {
     @State private var workspaces: [Workspace] = []
     @State private var syncStatusMessage: String?
     @State private var pushStatusMessage: String?
+    @State private var showPurgeConfirm = false
 
     var body: some View {
         List {
@@ -31,9 +32,35 @@ struct SettingsView: View {
                         Task { await syncNow() }
                     }
                 }
+                // Always available when there's *something* to purge — covers
+                // the case where the user disabled sync but left stale events
+                // on their calendar.
+                if !calendar.prefs.workspaceCalendars.isEmpty {
+                    Button(role: .destructive) {
+                        showPurgeConfirm = true
+                    } label: {
+                        Label("Delete all Goquest events from iPhone Calendar",
+                              systemImage: "trash")
+                    }
+                }
                 if let msg = syncStatusMessage {
                     Text(msg).font(.caption).foregroundStyle(.secondary)
                 }
+            }
+            .confirmationDialog(
+                "Delete all Goquest events?",
+                isPresented: $showPurgeConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Delete events only", role: .destructive) {
+                    Task { await purgeEvents(removeCalendars: false) }
+                }
+                Button("Delete events + calendars", role: .destructive) {
+                    Task { await purgeEvents(removeCalendars: true) }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Removes events Goquest wrote to your iOS Calendar. Calendars themselves are kept unless you choose otherwise.")
             }
 
             Section("Push Notifications") {
@@ -99,6 +126,21 @@ struct SettingsView: View {
             do { try calendar.disableSync(deleteEvents: false) }
             catch { syncStatusMessage = error.localizedDescription }
             BackgroundCalendarSync.shared.cancelPendingRefresh()
+        }
+    }
+
+    private func purgeEvents(removeCalendars: Bool) async {
+        do {
+            let removed = try calendar.purgeAllEvents()
+            if removeCalendars {
+                try calendar.disableSync(deleteEvents: true)
+                BackgroundCalendarSync.shared.cancelPendingRefresh()
+                syncStatusMessage = "Removed \(removed) events and the Goquest calendars."
+            } else {
+                syncStatusMessage = "Removed \(removed) events. Calendars are still in place."
+            }
+        } catch {
+            syncStatusMessage = "Purge failed: \(error.localizedDescription)"
         }
     }
 
