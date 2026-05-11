@@ -22,14 +22,14 @@ labels:
 steps:
   # ── 1. Regenerate xcodeproj (Goquest.xcodeproj/ is gitignored) ──
   - name: xcodegen
-    image: scratch
+    image: bash
     commands:
       - xcodegen --version
       - xcodegen generate
 
   # ── 2. Build for iOS Simulator (no signing) ──
   - name: build-simulator
-    image: scratch
+    image: bash
     commands:
       - xcodebuild -version
       - |
