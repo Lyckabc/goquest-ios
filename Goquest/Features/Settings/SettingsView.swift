@@ -32,16 +32,17 @@ struct SettingsView: View {
                         Task { await syncNow() }
                     }
                 }
-                // Always available when there's *something* to purge — covers
-                // the case where the user disabled sync but left stale events
-                // on their calendar.
-                if !calendar.prefs.workspaceCalendars.isEmpty {
-                    Button(role: .destructive) {
-                        showPurgeConfirm = true
-                    } label: {
-                        Label("Delete all Goquest events from iPhone Calendar",
-                              systemImage: "trash")
-                    }
+                // Always surface the destructive action. Hiding it behind a
+                // pre-flight check on `hasAnyGoquestCalendar` requires
+                // EventKit read access, which the user may not have granted
+                // — same place where the events to delete actually live.
+                // The action itself requests authorization, then no-ops if
+                // there is genuinely nothing to remove (reports "0 events").
+                Button(role: .destructive) {
+                    showPurgeConfirm = true
+                } label: {
+                    Label("Delete all Goquest events from iPhone Calendar",
+                          systemImage: "trash")
                 }
                 if let msg = syncStatusMessage {
                     Text(msg).font(.caption).foregroundStyle(.secondary)
@@ -131,13 +132,19 @@ struct SettingsView: View {
 
     private func purgeEvents(removeCalendars: Bool) async {
         do {
-            let removed = try calendar.purgeAllEvents()
+            // Ensure we have full-access to delete — read-only access can't
+            // remove events. Triggers the prompt if the user has never granted.
+            if calendar.authorizationStatus != .fullAccess {
+                _ = try await calendar.requestAccess()
+            }
+            let eventCount = try calendar.purgeAllEvents()
             if removeCalendars {
-                try calendar.disableSync(deleteEvents: true)
+                let calCount = try calendar.removeAllGoquestCalendars()
+                try calendar.disableSync(deleteEvents: false) // prefs reset; events/cals already gone
                 BackgroundCalendarSync.shared.cancelPendingRefresh()
-                syncStatusMessage = "Removed \(removed) events and the Goquest calendars."
+                syncStatusMessage = "Removed \(eventCount) events and \(calCount) calendars."
             } else {
-                syncStatusMessage = "Removed \(removed) events. Calendars are still in place."
+                syncStatusMessage = "Removed \(eventCount) events. Calendars are still in place."
             }
         } catch {
             syncStatusMessage = "Purge failed: \(error.localizedDescription)"
