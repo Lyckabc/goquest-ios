@@ -77,6 +77,29 @@ final class CalendarSyncService: ObservableObject {
         savePrefs()
     }
 
+    /// Nuke every event Goquest has written to iOS Calendar, leaving the
+    /// per-workspace calendar shells in place so a subsequent sync re-fills
+    /// them. Use this when the user wants to clean up pollution (e.g.
+    /// stale test events) without resetting their workspace mapping.
+    ///
+    /// Returns the number of events removed.
+    @discardableResult
+    func purgeAllEvents() throws -> Int {
+        var removed = 0
+        for (_, calID) in prefs.workspaceCalendars {
+            guard let cal = store.calendar(withIdentifier: calID) else { continue }
+            let pred = store.predicateForEvents(
+                withStart: .distantPast, end: .distantFuture, calendars: [cal]
+            )
+            for ev in store.events(matching: pred) {
+                try store.remove(ev, span: .thisEvent, commit: false)
+                removed += 1
+            }
+        }
+        try store.commit()
+        return removed
+    }
+
     // MARK: - Event sync
 
     /// Replaces all existing Goquest events on the workspace's calendar with
