@@ -1,0 +1,89 @@
+# XcodeGen project spec. Run `xcodegen generate` (brew install xcodegen) to
+# materialise Goquest.xcodeproj. See README for setup steps.
+
+name: Goquest
+options:
+  bundleIdPrefix: home.toji
+  createIntermediateGroups: true
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: en
+
+settings:
+  base:
+    DEVELOPMENT_TEAM: ""             # Set in Xcode after first generate
+    SWIFT_VERSION: "5.10"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_BITCODE: NO
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: NO
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+
+packages:
+  AppAuth:
+    url: https://github.com/openid/AppAuth-iOS
+    from: 1.7.0
+  KeychainAccess:
+    url: https://github.com/kishikawakatsumi/KeychainAccess
+    from: 4.2.2
+
+targets:
+  Goquest:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Goquest
+    resources:
+      - path: Goquest/Resources
+    info:
+      path: Goquest/Info.plist
+      properties:
+        CFBundleDisplayName: Goquest
+        UILaunchScreen:
+          UIColorName: AccentColor
+        # OAuth callback URL scheme — must match ZITADEL redirect URI
+        # (home.toji.goquest:/oauth2redirect/zitadel)
+        CFBundleURLTypes:
+          - CFBundleURLSchemes:
+              - home.toji.goquest
+        # Background modes — disabled for MVP; enable when adding background fetch.
+        UIBackgroundModes: []
+        NSCalendarsUsageDescription: >
+          Goquest can sync ticket due dates to your iOS Calendar so you never
+          miss a deadline.
+        NSCalendarsFullAccessUsageDescription: >
+          Goquest creates its own calendars (one per workspace) and never edits
+          your existing events.
+        NSUserNotificationsUsageDescription: >
+          Goquest sends a notification when a ticket is assigned to you or a
+          deadline is approaching.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: home.toji.goquest
+        TARGETED_DEVICE_FAMILY: "1,2"
+    dependencies:
+      - package: AppAuth
+      - package: KeychainAccess
+
+  GoquestUnitTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: GoquestUnitTests
+    dependencies:
+      - target: Goquest
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: home.toji.goquest.UnitTests
+
+  GoquestUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: GoquestUITests
+    dependencies:
+      - target: Goquest
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: home.toji.goquest.UITests
