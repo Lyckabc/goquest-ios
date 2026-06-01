@@ -5,6 +5,8 @@ struct MainTabView: View {
         TabView {
             NavigationStack { InboxView() }
                 .tabItem { Label("Inbox", systemImage: "tray.full") }
+            NavigationStack { ContractsView() }
+                .tabItem { Label("Contracts", systemImage: "signature") }
             NavigationStack { SettingsView() }
                 .tabItem { Label("Settings", systemImage: "gear") }
         }
