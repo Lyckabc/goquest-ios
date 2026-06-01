@@ -9,4 +9,14 @@ final class SmokeUITests: XCTestCase {
         let inboxTab = app.tabBars.buttons["Inbox"]
         XCTAssertTrue(cta.waitForExistence(timeout: 5) || inboxTab.waitForExistence(timeout: 5))
     }
+
+    func testContractsTabRenders() {
+        let app = XCUIApplication()
+        app.launch()
+        // Tap the Contracts tab.
+        app.tabBars.buttons["Contracts"].tap()
+        // Either the empty state or the list shows up; the navigation title
+        // is the cheapest invariant to assert on.
+        XCTAssertTrue(app.navigationBars["Contracts"].waitForExistence(timeout: 5))
+    }
 }
