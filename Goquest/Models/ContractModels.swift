@@ -133,3 +133,12 @@ struct ContractListResponse: Codable {
         case nextPageToken = "next_page_token"
     }
 }
+
+extension ContractSummary {
+    var displayTitle: String {
+        if let t = summaryTitle, !t.isEmpty { return t }
+        if let t = firstTicketTitle, !t.isEmpty { return t }
+        if let t = goal, !t.isEmpty { return t }
+        return "(No Title)"
+    }
+}
