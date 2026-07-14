@@ -33,6 +33,9 @@ struct TicketDetailView: View {
                 Section("Meta") {
                     LabeledContent("Status") { StatusBadge(status: t.status) }
                     LabeledContent("Priority") { PriorityBadge(priority: t.priority) }
+                    if let tier = t.riskTier, !tier.isEmpty {
+                        LabeledContent("Risk") { RiskTierBadge(tier: tier) }
+                    }
                     if let chan = t.channel {
                         LabeledContent("Channel") { Text(chan).font(.caption) }
                     }
@@ -52,6 +55,14 @@ struct TicketDetailView: View {
                 if let desc = t.description, !desc.isEmpty {
                     Section("Description") {
                         Text(desc).font(.body)
+                    }
+                }
+
+                if let links = t.vcsLinks, !links.isEmpty {
+                    Section("Development") {
+                        ForEach(links) { link in
+                            VcsLinkRow(link: link)
+                        }
                     }
                 }
             }
@@ -96,5 +107,58 @@ struct CommentRow: View {
         }
         .padding(.vertical, 4)
         .listRowBackground(comment.isInternal ? Color.orange.opacity(0.05) : Color.clear)
+    }
+}
+
+struct VcsLinkRow: View {
+    let link: VcsLink
+
+    private var icon: String {
+        switch link.kind {
+        case "branch":       return "arrow.triangle.branch"
+        case "pull_request": return "arrow.triangle.merge"
+        case "commit":       return "number"
+        default:             return "link"
+        }
+    }
+
+    private var stateColor: Color {
+        switch link.state {
+        case "merged": return .purple
+        case "open":   return .green
+        default:       return .gray   // closed / deleted
+        }
+    }
+
+    /// PR title when present, else the ref (branch name / short SHA / PR number).
+    private var primaryText: String {
+        link.title.isEmpty ? link.externalRef : link.title
+    }
+
+    var body: some View {
+        if let url = URL(string: link.url) {
+            Link(destination: url) { content }
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon).foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(primaryText).font(.callout).lineLimit(1).foregroundStyle(.primary)
+                Text(link.repoFullName).font(.caption2).foregroundStyle(.secondary)
+            }
+            Spacer()
+            if link.kind == "pull_request" {
+                Text(link.state)
+                    .font(.caption2)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(stateColor.opacity(0.15))
+                    .foregroundStyle(stateColor)
+                    .cornerRadius(4)
+            }
+        }
     }
 }

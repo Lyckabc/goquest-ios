@@ -19,15 +19,34 @@ final class AuthService: ObservableObject {
     private let keychain = Keychain(service: "home.toji.goquest.auth")
     private let stateKey = "oidAuthState"
 
-    // ZITADEL config — provisioned via lymphhub Terraform (sso-apps.tf → goquest_ios).
-    // Vault path: secret/neunexus/sso/goquest-ios (client-id).
-    // To rotate, edit lymphhub and re-apply; the value below mirrors the current state.
-    private let issuer = URL(string: "https://auth.toji.homes")!
-    private let clientID = "372400414877936855"
-    // Use double-slash custom scheme form. iOS 18+'s URL parser canonicalises
-    // single-slash forms inconsistently across ASWebAuthenticationSession and
-    // CFNetwork, which can break the redirect_uri exact-match in OAuth.
-    private let redirectURI = URL(string: "home.toji.goquest://oauth2redirect/zitadel")!
+    // Lymphhub OIDC (standard discovery, EdDSA JWTs). goquest-service trusts
+    // both Lymphhub and legacy ZITADEL via dual-JWKS during the migration, so
+    // existing ZITADEL sessions keep working until their refresh fails.
+    // client_id comes from Info.plist (GoquestOIDCClientID, xcconfig-injectable);
+    // the hardcoded fallback is the legacy ZITADEL client so a build without
+    // the new id still logs in (via the old issuer) during the transition.
+    // Use double-slash custom scheme form for redirectURI. iOS 18+'s URL parser
+    // canonicalises single-slash forms inconsistently across
+    // ASWebAuthenticationSession and CFNetwork, which can break the
+    // redirect_uri exact-match in OAuth.
+    private let issuer: URL
+    private let clientID: String
+    private let redirectURI: URL
+
+    private init() {
+        if let injected = Bundle.main.object(forInfoDictionaryKey: "GoquestOIDCClientID") as? String,
+           !injected.isEmpty, !injected.hasPrefix("$(") {
+            issuer = URL(string: "https://toji.idp.toji.homes")!
+            clientID = injected
+            redirectURI = URL(string: "home.toji.goquest://oauth2redirect/lymphhub")!
+        } else {
+            // Legacy ZITADEL fallback — remove once the Lymphhub app is
+            // registered and GOQUEST_OIDC_CLIENT_ID is set in xcconfig.
+            issuer = URL(string: "https://auth.toji.homes")!
+            clientID = "372400414877936855"
+            redirectURI = URL(string: "home.toji.goquest://oauth2redirect/zitadel")!
+        }
+    }
 
     private var authState: OIDAuthState? {
         didSet { persist() }
@@ -156,7 +175,7 @@ enum AuthError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notLoggedIn: return "Not signed in"
-        case .discoveryFailed: return "ZITADEL discovery failed"
+        case .discoveryFailed: return "OIDC discovery failed"
         case .unknown: return "Unknown auth error"
         }
     }

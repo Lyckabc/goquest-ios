@@ -28,7 +28,8 @@ final class TicketTests: XCTestCase {
             projectId: nil, channel: nil,
             requesterName: nil, requesterEmail: nil,
             dueAt: dueAt, createdAt: Date(), updatedAt: Date(),
-            completedAt: nil, rewardXp: nil
+            completedAt: nil, rewardXp: nil,
+            riskTier: nil, titleName: nil, vcsLinks: nil
         )
     }
 }

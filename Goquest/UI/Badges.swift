@@ -42,3 +42,25 @@ struct StatusBadge: View {
             .cornerRadius(4)
     }
 }
+
+struct RiskTierBadge: View {
+    let tier: String
+    var color: Color {
+        switch tier {
+        case "critical": return .red
+        case "high":     return .orange
+        case "medium":   return .blue
+        case "low":      return .gray
+        default:         return .secondary   // unknown tier from a newer server
+        }
+    }
+    var body: some View {
+        Label(tier.uppercased(), systemImage: "shield.lefthalf.filled")
+            .font(.caption2.bold())
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(color.opacity(0.15))
+            .foregroundStyle(color)
+            .cornerRadius(4)
+    }
+}

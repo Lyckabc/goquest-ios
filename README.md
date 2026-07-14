@@ -7,7 +7,7 @@
 | **Bundle ID** | `home.toji.goquest` |
 | **Min iOS** | 17.0 |
 | **Language** | Swift 5.10 / SwiftUI |
-| **Auth** | ZITADEL OIDC PKCE via [AppAuth-iOS](https://github.com/openid/AppAuth-iOS) |
+| **Auth** | Lymphhub OIDC PKCE (legacy ZITADEL fallback) via [AppAuth-iOS](https://github.com/openid/AppAuth-iOS) |
 | **Calendar sync** | Per-workspace EventKit calendars (Kuna pattern) |
 | **Push** | APNs token capture + registration only — server dispatcher tracked in `tojiuni/goquest/docs/ios-apns-dispatcher-todo.md` |
 
@@ -25,19 +25,26 @@ open Goquest.xcodeproj
 2. Add capabilities:
    - **Push Notifications**
    - **Background Modes → Remote notifications** (optional, for silent push later)
-3. Replace `GOQUEST_IOS_CLIENT_ID` in `AuthService.swift` with the ZITADEL client_id from Vault (or wire via an `.xcconfig` file).
+3. Set `GOQUEST_OIDC_CLIENT_ID` (xcconfig) to the Lymphhub client_id so it's injected into
+   Info.plist as `GoquestOIDCClientID` — see `AuthService.swift`. Leaving it unset/unexpanded
+   falls back to the legacy ZITADEL client so the app still builds and logs in during the
+   migration.
 
-### ZITADEL OIDC app
+### Lymphhub OIDC app
 
-Register a new `OIDC_APP_TYPE_NATIVE` app in ZITADEL:
-- Redirect URI: `home.toji.goquest:/oauth2redirect/zitadel`
-- Grant types: `OIDC_GRANT_TYPE_AUTHORIZATION_CODE`, `OIDC_GRANT_TYPE_REFRESH_TOKEN`
-- Response type: `OIDC_RESPONSE_TYPE_CODE`
-- Auth method: `OIDC_AUTH_METHOD_TYPE_NONE` (PKCE, no secret)
-- Access token type: `OIDC_TOKEN_TYPE_JWT` (so goquest-service can validate via JWKS)
+Register a new native PKCE app in Lymphhub (`https://toji.idp.toji.homes`):
+- Redirect URI: `home.toji.goquest://oauth2redirect/lymphhub`
+- Grant types: `authorization_code`, `refresh_token`
+- Response type: `code`
+- Auth method: none (PKCE, no secret)
 
 Add this to `neunexus/services/lymphhub/sso-apps.tf` (see Vault path
-`secret/neunexus/sso/goquest-ios` once Terraform applies it).
+`secret/neunexus/sso/goquest-ios` once Terraform applies it), then set
+`GOQUEST_OIDC_CLIENT_ID` in the app's `.xcconfig` to that client_id.
+
+goquest-service trusts both Lymphhub and legacy ZITADEL via dual-JWKS during
+the migration, so existing ZITADEL sessions keep working until this app is
+registered and the client_id is wired in.
 
 ---
 

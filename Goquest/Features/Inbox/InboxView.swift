@@ -14,6 +14,8 @@ final class InboxViewModel: ObservableObject {
     @Published var queue: Queue = .open
     @Published var isLoading = false
     @Published var error: String?
+    @Published var searchText: String = ""
+    private var searchTask: Task<Void, Never>?
 
     enum Queue: String, CaseIterable, Identifiable {
         case open = "Open", mine = "Mine", overdue = "Overdue"
@@ -65,11 +67,26 @@ final class InboxViewModel: ObservableObject {
             let resp = try await APIClient.shared.listTickets(
                 workspaceId: selectedWorkspace?.id,
                 projectId: selectedProject?.id,
+                q: searchText,
                 limit: 100
             )
             tickets = resp.tickets
         } catch {
+            // A cancelled search debounce aborts the in-flight URLSession call;
+            // that's not an error the user should see.
+            if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
             self.error = error.localizedDescription
+        }
+    }
+
+    /// Debounce 300ms then reload from the server (q param). Called from
+    /// .searchable's onChange; empty text reloads the unfiltered list.
+    func searchTextChanged() {
+        searchTask?.cancel()
+        searchTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            await self?.loadTickets()
         }
     }
 
@@ -146,7 +163,12 @@ struct InboxView: View {
             if vm.isLoading {
                 ProgressView()
             } else if vm.filtered.isEmpty {
-                ContentUnavailableView("No tickets", systemImage: "tray", description: Text("\(vm.queue.rawValue) queue is empty."))
+                if vm.searchText.isEmpty {
+                    ContentUnavailableView("No tickets", systemImage: "tray",
+                        description: Text("\(vm.queue.rawValue) queue is empty."))
+                } else {
+                    ContentUnavailableView.search(text: vm.searchText)
+                }
             } else {
                 ForEach(vm.filtered) { t in
                     NavigationLink(value: t) {
@@ -156,6 +178,8 @@ struct InboxView: View {
             }
         }
         .navigationTitle("Inbox")
+        .searchable(text: $vm.searchText, prompt: "Search tickets")
+        .onChange(of: vm.searchText) { vm.searchTextChanged() }
         .navigationDestination(for: Ticket.self) { t in
             TicketDetailView(ticketId: t.id, preloaded: t)
         }
@@ -179,6 +203,9 @@ struct TicketRow: View {
             }
             HStack(spacing: 6) {
                 StatusBadge(status: ticket.status)
+                if let tier = ticket.riskTier, !tier.isEmpty {
+                    RiskTierBadge(tier: tier)
+                }
                 if let due = ticket.dueAt {
                     Label {
                         Text(due, style: .relative).font(.caption)
