@@ -42,6 +42,6 @@
 
 ## Bundle hygiene
 
-- [ ] Move `clientID` to an `.xcconfig` file (currently hardcoded placeholder)
+- [x] Move `clientID` to an `.xcconfig` file (GoquestOIDCClientID Info.plist key — 2026-07-14)
 - [ ] Add `Debug.xcconfig` / `Release.xcconfig` for environment switching
 - [ ] App Store launch checklist (privacy policy, App Store screenshots)
