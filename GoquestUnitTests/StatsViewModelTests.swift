@@ -6,12 +6,24 @@ import XCTest
 final class MockStatsAPI: StatsAPI, @unchecked Sendable {
     var analyticsResults: [String: Result<AnalyticsResponse, Error>] = [:]
     var workspacesResult: Result<[Workspace], Error> = .success([])
-    private(set) var requestedGroupBys: [String] = []
-    private(set) var lastWorkspaceArg: String??
+
+    private let lock = NSLock()
+    private var _requestedGroupBys: [String] = []
+    private var _lastWorkspaceArg: String??
+
+    var requestedGroupBys: [String] {
+        lock.withLock { _requestedGroupBys }
+    }
+
+    var lastWorkspaceArg: String?? {
+        lock.withLock { _lastWorkspaceArg }
+    }
 
     func analytics(groupBy: String, workspaceId: String?) async throws -> AnalyticsResponse {
-        requestedGroupBys.append(groupBy)
-        lastWorkspaceArg = workspaceId
+        lock.lock()
+        defer { lock.unlock() }
+        _requestedGroupBys.append(groupBy)
+        _lastWorkspaceArg = workspaceId
         guard let r = analyticsResults[groupBy] else {
             throw APIError.http(status: 500, body: "no stub for \(groupBy)")
         }
