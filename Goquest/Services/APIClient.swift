@@ -41,17 +41,18 @@ actor APIClient {
     func listTickets(
         workspaceId: String? = nil,
         projectId: String? = nil,
+        q: String? = nil,
         limit: Int = 50,
         offset: Int = 0
     ) async throws -> TicketListResponse {
-        var path = "/tickets?limit=\(limit)&offset=\(offset)"
-        if let w = workspaceId, !w.isEmpty {
-            path += "&workspace_id=\(w)"
-        }
-        if let p = projectId, !p.isEmpty {
-            path += "&project_id=\(p)"
-        }
-        return try await get(path)
+        try await get(APIPath.tickets(workspaceId: workspaceId, projectId: projectId,
+                                      q: q, limit: limit, offset: offset))
+    }
+
+    /// GET /analytics/tickets — COUNT(*) grouped by one whitelisted column
+    /// (status/type/priority/domain/risk_tier/assignee_id/assignee_type).
+    func ticketAnalytics(groupBy: String, workspaceId: String? = nil) async throws -> AnalyticsResponse {
+        try await get(APIPath.ticketAnalytics(groupBy: groupBy, workspaceId: workspaceId))
     }
 
     func getTicket(id: String) async throws -> Ticket {
@@ -143,6 +144,36 @@ actor APIClient {
         if (200...299).contains(http.statusCode) { return }
         let bodyPreview = String(data: data, encoding: .utf8) ?? "<binary>"
         throw APIError.http(status: http.statusCode, body: bodyPreview.prefix(400).description)
+    }
+}
+
+/// Pure path builders, kept outside the actor so unit tests can exercise
+/// query composition (percent-encoding, filter combinations) directly.
+enum APIPath {
+    /// Characters allowed inside one query *value*: `.urlQueryAllowed` minus
+    /// the separators (&, =, +, ?) so user text can't split parameters.
+    private static let queryValueAllowed: CharacterSet = {
+        var cs = CharacterSet.urlQueryAllowed
+        cs.remove(charactersIn: "&=+?")
+        return cs
+    }()
+
+    static func tickets(workspaceId: String?, projectId: String?, q: String?,
+                        limit: Int, offset: Int) -> String {
+        var path = "/tickets?limit=\(limit)&offset=\(offset)"
+        if let w = workspaceId, !w.isEmpty { path += "&workspace_id=\(w)" }
+        if let p = projectId, !p.isEmpty { path += "&project_id=\(p)" }
+        if let query = q?.trimmingCharacters(in: .whitespacesAndNewlines), !query.isEmpty,
+           let enc = query.addingPercentEncoding(withAllowedCharacters: queryValueAllowed) {
+            path += "&q=\(enc)"
+        }
+        return path
+    }
+
+    static func ticketAnalytics(groupBy: String, workspaceId: String?) -> String {
+        var path = "/analytics/tickets?group_by=\(groupBy)"
+        if let w = workspaceId, !w.isEmpty { path += "&workspace_id=\(w)" }
+        return path
     }
 }
 
