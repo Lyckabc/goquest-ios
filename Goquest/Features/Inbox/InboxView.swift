@@ -200,6 +200,9 @@ struct TicketRow: View {
             }
             HStack(spacing: 6) {
                 StatusBadge(status: ticket.status)
+                if let tier = ticket.riskTier, !tier.isEmpty {
+                    RiskTierBadge(tier: tier)
+                }
                 if let due = ticket.dueAt {
                     Label {
                         Text(due, style: .relative).font(.caption)
