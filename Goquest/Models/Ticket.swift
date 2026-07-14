@@ -19,6 +19,10 @@ struct Ticket: Codable, Identifiable, Hashable {
     let updatedAt: Date
     let completedAt: Date?
     let rewardXp: Int?
+    let riskTier: String?
+    let titleName: String?
+    /// Embedded only on GET /tickets/{id}; absent (nil) in list responses.
+    let vcsLinks: [VcsLink]?
 
     enum CodingKeys: String, CodingKey {
         case id, title, description, type, status, priority
@@ -34,6 +38,9 @@ struct Ticket: Codable, Identifiable, Hashable {
         case updatedAt = "updated_at"
         case completedAt = "completed_at"
         case rewardXp = "reward_xp"
+        case riskTier = "risk_tier"
+        case titleName = "title_name"
+        case vcsLinks = "vcs_links"
     }
 
     var isTerminal: Bool {
