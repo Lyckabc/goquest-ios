@@ -74,6 +74,11 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: home.toji.goquest
         TARGETED_DEVICE_FAMILY: "1,2"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Lymphhub toji-tenant public PKCE client (registered 2026-07-14 via
+        # lymphhub admin API; recorded in Vault secret/neunexus/sso/goquest-ios).
+        # Public client id — not a secret. Override per-config via xcconfig if
+        # a separate dev/staging client is ever registered.
+        GOQUEST_OIDC_CLIENT_ID: goquest-ios
     dependencies:
       - package: AppAuth
       - package: KeychainAccess
