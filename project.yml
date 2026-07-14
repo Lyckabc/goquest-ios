@@ -46,8 +46,8 @@ targets:
         # Lymphhub OIDC client id — inject via xcconfig (GOQUEST_OIDC_CLIENT_ID).
         # Empty/unset ⇒ AuthService falls back to the legacy ZITADEL client.
         GoquestOIDCClientID: $(GOQUEST_OIDC_CLIENT_ID)
-        # OAuth callback URL scheme — must match ZITADEL redirect URI
-        # (home.toji.goquest:/oauth2redirect/zitadel)
+        # OAuth callback URL scheme — must match the OIDC redirect URIs (double-slash form):
+        # home.toji.goquest://oauth2redirect/lymphhub (Lymphhub) and .../zitadel (legacy fallback)
         CFBundleURLTypes:
           - CFBundleURLSchemes:
               - home.toji.goquest

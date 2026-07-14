@@ -72,6 +72,9 @@ final class InboxViewModel: ObservableObject {
             )
             tickets = resp.tickets
         } catch {
+            // A cancelled search debounce aborts the in-flight URLSession call;
+            // that's not an error the user should see.
+            if error is CancellationError || (error as? URLError)?.code == .cancelled { return }
             self.error = error.localizedDescription
         }
     }
